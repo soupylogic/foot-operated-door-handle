@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Foot-Operated Door Handle Simulator | High-Fi 3D Experience</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+            background: #050505;
+            overflow: hidden;
+            color: #e0e0e0;
+        }
+        #canvas-container {
+            width: 100vw; height: 100vh; display: block;
+            background: radial-gradient(circle at 50% 50%, #111827 0%, #030712 100%);
+        }
+
+        /* Glassmorphism Panels */
+        .panel {
+            position: absolute;
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: #e0e0e0;
+            z-index: 10;
+        }
+
+        #left-panel { top: 20px; left: 20px; width: 380px; animation: slideInLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        #right-panel { top: 20px; right: 20px; width: 360px; animation: slideInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        #bottom-panel { bottom: 20px; left: 50%; transform: translateX(-50%); width: 700px; animation: slideInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        @keyframes slideInLeft { from { transform: translateX(-60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideInRight { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideInUp { from { transform: translateX(-50%) translateY(60px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+
+        h1 {
+            font-size: 1.8rem; margin-top: 0; margin-bottom: 8px;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-weight: 800; letter-spacing: -0.5px;
+        }
+
+        h2 { font-size: 0.9rem; margin-top: 16px; margin-bottom: 8px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; }
+        p { font-size: 0.95rem; line-height: 1.6; color: #cbd5e1; margin-bottom: 8px; }
+
+        .badge {
+            display: inline-block; padding: 6px 14px;
+            background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px; font-size: 0.75rem; font-weight: 700; color: #60a5fa;
+            margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        .workflow-step {
+            padding: 12px 16px; margin: 8px 0; border-radius: 12px;
+            background: rgba(30, 41, 59, 0.5); border-left: 3px solid #334155;
+            font-size: 0.9rem; color: #94a3b8; transition: all 0.4s ease;
+        }
+        .workflow-step.active {
+            background: rgba(59, 130, 246, 0.15); border-left-color: #3b82f6;
+            color: #60a5fa; font-weight: 700; transform: translateX(8px);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+        }
+
+        .stat-box {
+            background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(51, 65, 85, 0.8);
+            border-radius: 16px; padding: 16px; margin-top: 12px;
+        }
+        .stat-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 8px; }
+        .stat-value { font-size: 2.2rem; color: #38bdf8; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+        
+        .progress-bar { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #34d399); width: 0%; transition: width 0.1s linear; }
+
+        .controls { display: flex; gap: 12px; margin-top: 24px; }
+        button {
+            flex: 1; padding: 16px; border: none; border-radius: 12px; cursor: pointer;
+            font-weight: 800; color: white; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+        .btn-play { background: #2563eb; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4); }
+        .btn-play:hover { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6); }
+        .btn-reset { background: transparent; border: 2px solid #475569; color: #cbd5e1; }
+        .btn-reset:hover { border-color: #64748b; background: rgba(71, 85, 105, 0.2); }
+
+        .slider-container { margin-top: 24px; }
+        .slider-label { font-size: 0.85rem; color: #94a3b8; display: flex; justify-content: space-between; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; }
+        input[type=range] { width: 100%; accent-color: #3b82f6; cursor: pointer; }
+
+        .benefits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+        .benefit-item {
+            background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(71, 85, 105, 0.5);
+            border-radius: 12px; padding: 16px 12px; text-align: center; font-size: 0.85rem; color: #e2e8f0;
+        }
+        .benefit-icon { font-size: 1.6rem; margin-bottom: 8px; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div id="left-panel" class="panel">
+        <h1>🚪 Smart Hygiene Door</h1>
+        <span class="badge">Advanced Mechanism Prototype</span>
+        
+        <h2>Problem Statement</h2>
+        <p>People face critical hygiene risks when opening doors in public places. Direct hand contact spreads germs, bacteria, and viruses—a major health concern.</p>
+        
+        <h2>Our Solution</h2>
+        <p>A completely hands-free, foot-operated door handle mechanism using an infrared sensor, MCU, and motorized actuator to physically pull the handle down for you.</p>
+        
+        <h2>Key Benefits</h2>
+        <div class="benefits-grid">
+            <div class="benefit-item"><div class="benefit-icon">🧼</div>100% Hygienic</div>
+            <div class="benefit-item"><div class="benefit-icon">✨</div>Touch-Free</div>
+            <div class="benefit-item"><div class="benefit-icon">⚙️</div>Automated</div>
+            <div class="benefit-item"><div class="benefit-icon">🛡️</div>Safe & Secure</div>
+        </div>
+        
+        <h2>Team</h2>
+        <p style="margin-top: 12px;"><strong style="color: #60a5fa;">Adtya</strong> • <strong style="color: #60a5fa;">Ujjwal</strong> • <strong style="color: #60a5fa;">Makshith</strong></p>
+    </div>
+
+    <div id="right-panel" class="panel">
+        <h2>⚙️ System Workflow</h2>
+        <div id="step-1" class="workflow-step">① Foot on Pedal</div>
+        <div id="step-2" class="workflow-step">② IR Sensor Detects</div>
+        <div id="step-3" class="workflow-step">③ MCU Processing</div>
+        <div id="step-4" class="workflow-step">④ Motor Actuation</div>
+        <div id="step-5" class="workflow-step">⑤ Handle Pulled Down</div>
+        <div id="step-6" class="workflow-step">⑥ Door Swings Open</div>
+        
+        <div class="stat-box">
+            <div class="stat-label">📊 IR Sensor Level</div>
+            <div class="stat-value" id="sensor-display">0%</div>
+            <div class="progress-bar"><div class="progress-fill" id="sensor-bar"></div></div>
+        </div>
+
+        <div class="stat-box">
+            <div class="stat-label">⚡ Motor Output</div>
+            <div class="stat-value" id="motor-display">0%</div>
+            <div class="progress-bar"><div class="progress-fill" id="motor-bar"></div></div>
+        </div>
+
+        <div class="slider-container">
+            <div class="slider-label"><span>Animation Speed</span><span style="color: #38bdf8;" id="speed-val">1.0x</span></div>
+            <input type="range" id="speed-slider" min="0.5" max="3" step="0.1" value="1">
+        </div>
+
+        <div class="controls">
+            <button class="btn-play" onclick="playSimulation()">▶ ACTIVATE</button>
+            <button class="btn-reset" onclick="resetSimulation()">↻ RESET</button>
+        </div>
+    </div>
+
+    <div id="bottom-panel" class="panel">
+        <p style="text-align: center; font-size: 0.95rem; margin: 0; color: #94a3b8;">
+            💡 <strong>Interactive 3D View:</strong> Click the <span style="color:white;">Foot Pedal</span> in the scene or press <span style="color:white;">ACTIVATE</span>. Drag to rotate the camera, scroll to zoom.
+        </p>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // ============ SCENE SETUP ============
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030712, 0.03);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(5, 3, 6);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 1.2, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 + 0.1; // Don't go too far below ground
+
+        // ============ LIGHTING ============
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(5, 8, 5);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.bias = -0.001;
+        scene.add(mainLight);
+
+        // Neon aesthetic lights
+        const blueLight = new THREE.PointLight(0x3b82f6, 1.5, 10);
+        blueLight.position.set(2, 4, 3);
+        scene.add(blueLight);
+
+        const washroomLight = new THREE.PointLight(0xffedd5, 1, 8);
+        washroomLight.position.set(-1.5, 2.5, -2);
+        scene.add(washroomLight);
+
+        // ============ MATERIALS ============
+        const mat = {
+            wallFront: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 }),
+            wallInside: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.9 }), // Bright washroom
+            floorOutside: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 }),
+            floorInside: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 }),
+            wood: new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.6 }),
+            metal: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.3, metalness: 0.8 }),
+            darkMetal: new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.6 }),
+            plastic: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 }),
+            sensorOff: new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b }),
+            sensorOn: new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 2 }),
+            wire: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }),
+            wireActive: new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x2563eb, emissiveIntensity: 1.5 })
+        };
+
+        // ============ ENVIRONMENT: CORRIDOR & WALLS ============
+        // Main corridor floor
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), mat.floorOutside);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Grid helper for tech vibe
+        const grid = new THREE.GridHelper(20, 40, 0x3b82f6, 0x1e293b);
+        grid.position.y = 0.01;
+        grid.material.transparent = true;
+        grid.material.opacity = 0.15;
+        scene.add(grid);
+
+        // Front Wall with Doorway cutout (Constructed with 3 boxes)
+        // Doorway goes from x=-0.8 to x=0.8, height 2.2
+        const wallGroup = new THREE.Group();
+        
+        const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 0.2), mat.wallFront);
+        wallLeft.position.set(-2.8, 2, 0); wallLeft.castShadow = true; wallLeft.receiveShadow = true;
+        
+        const wallRight = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 0.2), mat.wallFront);
+        wallRight.position.set(2.8, 2, 0); wallRight.castShadow = true; wallRight.receiveShadow = true;
+        
+        const wallTop = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 0.2), mat.wallFront);
+        wallTop.position.set(0, 3.1, 0); wallTop.castShadow = true; wallTop.receiveShadow = true;
+
+        wallGroup.add(wallLeft, wallRight, wallTop);
+        scene.add(wallGroup);
+
+        // ============ ENVIRONMENT: WASHROOM ============
+        // Built behind the wall (z < 0)
+        const washroomGroup = new THREE.Group();
+        washroomGroup.position.set(0, 0, -2.5); // Center of washroom
+        
+        // Washroom Floor
+        const wFloor = new THREE.Mesh(new THREE.PlaneGeometry(6, 5), mat.floorInside);
+        wFloor.rotation.x = -Math.PI / 2; wFloor.position.y = 0.02; wFloor.receiveShadow = true;
+        
+        // Washroom Walls (Back, Left, Right)
+        const wBack = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 0.2), mat.wallInside);
+        wBack.position.set(0, 2, -2.5); wBack.receiveShadow = true;
+        
+        const wLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 5), mat.wallInside);
+        wLeft.position.set(-3, 2, 0); wLeft.receiveShadow = true;
+        
+        const wRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 5), mat.wallInside);
+        wRight.position.set(3, 2, 0); wRight.receiveShadow = true;
+
+        // Washroom Interior Props
+        // Mirror
+        const mirror = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 0.05), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 1, roughness: 0 }));
+        mirror.position.set(0, 2.2, -2.35);
+        // Sink Counter
+        const sink = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.8), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+        sink.position.set(0, 1.1, -2.0); sink.castShadow = true;
+        // Toilet
+        const toiletBase = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.8), mat.floorInside);
+        toiletBase.position.set(-2, 0.3, -1.8); toiletBase.castShadow = true;
+        const toiletTank = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.3), mat.floorInside);
+        toiletTank.position.set(-2, 0.8, -2.2); toiletTank.castShadow = true;
+
+        washroomGroup.add(wFloor, wBack, wLeft, wRight, mirror, sink, toiletBase, toiletTank);
+        scene.add(washroomGroup);
+
+        // ============ DOOR MECHANISM ============
+        // Door Pivot (Hinge on the left)
+        const doorPivot = new THREE.Group();
+        doorPivot.position.set(-0.8, 0, 0.1); // Hinge location
+        scene.add(doorPivot);
+
+        // The Door itself
+        const door = new THREE.Mesh(new THREE.BoxGeometry(1.56, 2.16, 0.08), mat.wood);
+        door.position.set(0.78, 1.1, -0.04); // Offset so hinge works
+        door.castShadow = true; door.receiveShadow = true;
+        doorPivot.add(door);
+
+        // Standard Handle (Mounted on Door)
+        const handlePivot = new THREE.Group();
+        handlePivot.position.set(1.4, 1.05, 0.05); // Right side of door
+        doorPivot.add(handlePivot);
+
+        const handleBase = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05), mat.metal);
+        handleBase.rotation.x = Math.PI/2;
+        handlePivot.add(handleBase);
+
+        const handleLever = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.02), mat.metal);
+        handleLever.position.set(-0.05, 0, 0.05);
+        handlePivot.add(handleLever);
+
+        // System Components mounted ON the Door (per prototype sketch)
+        const systemGroup = new THREE.Group();
+        systemGroup.position.set(0.8, 1.3, 0.05); // Middle-right of door
+        doorPivot.add(systemGroup);
+
+        // MCU Box
+        const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.06), mat.darkMetal);
+        mcu.position.set(-0.1, 0.2, 0); mcu.castShadow = true;
+        systemGroup.add(mcu);
+
+        // MCU LEDs
+        const led = new THREE.Mesh(new THREE.CircleGeometry(0.015, 16), new THREE.MeshBasicMaterial({color: 0x333333}));
+        led.position.set(0.05, 0.3, 0.031);
+        systemGroup.add(led);
+
+        // Motorized Actuator
+        const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.25), mat.metal);
+        motor.rotation.z = Math.PI/2;
+        motor.position.set(0.1, -0.1, 0.02); motor.castShadow = true;
+        systemGroup.add(motor);
+
+        // Actuator Piston / Mechanical Linkage
+        const linkage = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3), mat.metal);
+        linkage.position.set(0.25, -0.1, 0.02); // Starts inside motor, extends right
+        linkage.rotation.z = Math.PI/2;
+        systemGroup.add(linkage);
+
+        // Vertical connecting rod down to handle
+        const vertRod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.25), mat.metal);
+        vertRod.position.set(0.4, -0.22, 0.02); // Connects horizontal linkage to handle
+        systemGroup.add(vertRod);
+
+        // ============ FLOOR COMPONENTS ============
+        // Foot Pedal
+        const pedalGroup = new THREE.Group();
+        pedalGroup.position.set(0.6, 0, 0.8);
+        scene.add(pedalGroup);
+
+        const pedalBase = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.3), mat.darkMetal);
+        pedalBase.position.y = 0.01;
+        pedalGroup.add(pedalBase);
+
+        const pedalPlate = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.02, 0.25), mat.plastic);
+        pedalPlate.position.set(0, 0.08, 0); pedalPlate.rotation.x = -0.1;
+        pedalPlate.castShadow = true;
+        pedalGroup.add(pedalPlate);
+
+        // IR Sensor
+        const irSensor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.08), mat.darkMetal);
+        irSensor.position.set(-0.25, 0.075, 0);
+        pedalGroup.add(irSensor);
+
+        const irLens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 16), mat.sensorOff);
+        irLens.position.set(-0.25, 0.1, 0.041);
+        pedalGroup.add(irLens);
+
+        // Wires from Pedal to Door
+        // Since door moves, wire needs to look logical. We'll trace it along the floor to hinge, then up.
+        const wireGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0.35, 0.02, 0.8), // At sensor
+            new THREE.Vector3(-0.7, 0.02, 0.8), // To wall
+            new THREE.Vector3(-0.7, 0.02, 0.1), // To hinge
+            new THREE.Vector3(-0.7, 1.5, 0.1)   // Up wall
+        ]);
+        const floorWire = new THREE.Line(wireGeo, new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 2 }));
+        scene.add(floorWire);
+
+        // Helper labels
+        function createLabel(text, pos) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.fillRect(0, 0, 256, 64);
+            ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(text, 128, 44);
+            const tex = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: tex });
+            const sprite = new THREE.Sprite(spriteMat);
+            sprite.position.copy(pos);
+            sprite.scale.set(0.6, 0.15, 1);
+            return sprite;
+        }
+        scene.add(createLabel("FOOT PEDAL", new THREE.Vector3(0.6, 0.25, 0.8)));
+        doorPivot.add(createLabel("MCU & MOTOR", new THREE.Vector3(0.7, 1.7, 0.1)));
+
+        // ============ ANIMATION LOGIC ============
+        let mainTimeline = gsap.timeline({ paused: true });
+
+        function setUIActive(stepNum) {
+            document.querySelectorAll('.workflow-step').forEach(el => el.classList.remove('active'));
+            if(stepNum > 0) document.getElementById('step-' + stepNum).classList.add('active');
+        }
+
+        function buildAnimation() {
+            mainTimeline.clear();
+
+            mainTimeline
+                // 1: Foot on Pedal
+                .call(() => setUIActive(1))
+                .to(pedalPlate.rotation, { x: 0, duration: 0.2 }, "pedal")
+                .to(pedalPlate.position, { y: 0.03, duration: 0.2 }, "pedal")
+                
+                // 2: Sensor Detects
+                .call(() => setUIActive(2), "+=0.1")
+                .to(irLens.material, { color: 0x10b981, emissive: 0x10b981, duration: 0.1 })
+                
+                // 3: Signal to MCU
+                .call(() => setUIActive(3), "+=0.1")
+                .to(floorWire.material, { color: 0x3b82f6, duration: 0.2 })
+                .to(led.material, { color: 0x38bdf8, duration: 0.1 })
+                
+                // 4: Motor Actuates
+                .call(() => setUIActive(4), "+=0.2")
+                // Spin motor visual
+                .to(motor.rotation, { y: Math.PI * 4, duration: 0.8, ease: "power1.inOut" }, "motor")
+                // Linkage rod extends right
+                .to(linkage.position, { x: 0.35, duration: 0.5 }, "motor")
+                // Vertical rod moves right and down (simulating mechanical pull)
+                .to(vertRod.position, { x: 0.5, y: -0.25, duration: 0.5 }, "motor")
+                
+                // 5: Handle Pulled Down
+                .call(() => setUIActive(5), "-=0.3")
+                .to(handlePivot.rotation, { z: -Math.PI / 4, duration: 0.4 }, "motor")
+
+                // 6: Door Swings Open (Inwards to washroom)
+                .call(() => setUIActive(6), "+=0.1")
+                .to(doorPivot.rotation, { y: -Math.PI / 1.8, duration: 1.5, ease: "power2.out" });
+        }
+
+        buildAnimation();
+
+        window.playSimulation = function() {
+            if (mainTimeline.progress() === 1) mainTimeline.restart();
+            else mainTimeline.play();
+        }
+
+        window.resetSimulation = function() {
+            mainTimeline.pause();
+            gsap.to(doorPivot.rotation, { y: 0, duration: 0.8 });
+            gsap.to(handlePivot.rotation, { z: 0, duration: 0.5 });
+            gsap.to([linkage.position], { x: 0.25, duration: 0.5 });
+            gsap.to([vertRod.position], { x: 0.4, y: -0.22, duration: 0.5 });
+            gsap.to(pedalPlate.position, { y: 0.08, duration: 0.3 });
+            gsap.to(pedalPlate.rotation, { x: -0.1, duration: 0.3 });
+            
+            setTimeout(() => {
+                irLens.material.color.setHex(0xef4444); irLens.material.emissive.setHex(0x991b1b);
+                floorWire.material.color.setHex(0x444444);
+                led.material.color.setHex(0x333333);
+                mainTimeline.progress(0);
+                setUIActive(0);
+            }, 800);
+        }
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const speed = parseFloat(e.target.value);
+            document.getElementById('speed-val').innerText = speed.toFixed(1) + 'x';
+            mainTimeline.timeScale(speed);
+        });
+
+        // Click detection on Pedal
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        window.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(pedalPlate);
+            if (intersects.length > 0 && mainTimeline.progress() === 0) playSimulation();
+        });
+
+        // ============ RENDER LOOP ============
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Update UI Stats
+            let p = mainTimeline.progress();
+            let sensorLvl = p > 0.05 ? 100 : 0;
+            let motorLvl = (p > 0.3 && p < 0.7) ? Math.sin((p-0.3)*Math.PI*2.5)*100 : 0;
+            if(motorLvl < 0) motorLvl = 0;
+
+            document.getElementById('sensor-display').innerText = sensorLvl + '%';
+            document.getElementById('sensor-bar').style.width = sensorLvl + '%';
+            document.getElementById('motor-display').innerText = Math.round(motorLvl) + '%';
+            document.getElementById('motor-bar').style.width = motorLvl + '%';
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
